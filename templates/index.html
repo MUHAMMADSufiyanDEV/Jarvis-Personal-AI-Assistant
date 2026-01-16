@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis - AI Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d0d0d;
+            color: #ececec;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #1a1a1a;
+            padding: 20px 12px;
+            overflow-y: auto;
+            border-right: 1px solid #2d2d2d;
+        }
+
+        .brand {
+            font-size: 16px;
+            font-weight: bold;
+            color: #10a37f;
+            margin-bottom: 20px;
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 10px;
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .new-chat-btn:hover {
+            background: #0d8659;
+        }
+
+        .recent-chats-label {
+            font-size: 10px;
+            color: #888;
+            text-transform: uppercase;
+            margin: 20px 0 10px;
+        }
+
+        .recent-chats {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .chat-item {
+            padding: 8px 10px;
+            background: #262626;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .chat-item:hover {
+            background: #333;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 15px;
+            border-top: 1px solid #2d2d2d;
+        }
+
+        .user-info {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .logout-btn {
+            width: 100%;
+            padding: 8px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 20px;
+            border-bottom: 1px solid #2d2d2d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .header-btn {
+            padding: 8px 12px;
+            background: #2d2d2d;
+            color: #888;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .header-btn:hover {
+            background: #333;
+            color: #ddd;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 60%;
+            padding: 12px 15px;
+            border-radius: 8px;
+            word-wrap: break-word;
+        }
+
+        .user .message-content {
+            background: #1f4620;
+            color: white;
+        }
+
+        .jarvis .message-content {
+            background: #2d2d44;
+            color: white;
+        }
+
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #10a37f;
+        }
+
+        .welcome-subtitle {
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .prompts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .prompt-card {
+            padding: 15px;
+            background: #2d2d44;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .prompt-card:hover {
+            background: #3d3d54;
+            border: 1px solid #10a37f;
+        }
+
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid #2d2d2d;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px 15px;
+            background: #2d2d2d;
+            color: #ececec;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border: 1px solid #10a37f;
+        }
+
+        .send-btn {
+            padding: 12px 20px;
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .send-btn:hover {
+            background: #0d8659;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .action-btn {
+            padding: 8px 12px;
+            background: #2d2d2d;
+            color: #888;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .action-btn:hover {
+            background: #333;
+        }
+
+        .auth-modal {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #0d0d0d;
+        }
+
+        .auth-card {
+            background: #1a1a1a;
+            padding: 40px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-align: center;
+            color: #10a37f;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            background: #2d2d2d;
+            color: #ececec;
+            border: none;
+            border-radius: 6px;
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 12px;
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .auth-btn:hover {
+            background: #0d8659;
+        }
+
+        .auth-toggle {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .auth-toggle a {
+            color: #10a37f;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .error {
+            color: #ff6b6b;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .success {
+            color: #10a37f;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            background: #10a37f;
+            border-radius: 50%;
+            animation: blink 1.3s infinite;
+        }
+
+        @keyframes blink {
+            0%, 20%, 50%, 80%, 100% { opacity: 1; }
+            40% { opacity: 0.5; }
+            60% { opacity: 0.5; }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #10a37f;
+        }
+
+        .close-btn {
+            float: right;
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="auth-section" class="auth-modal">
+        <div class="auth-card">
+            <div class="auth-title">🤖 JARVIS</div>
+            
+            <div id="login-form">
+                <h2 style="color: #ececec; margin-bottom: 20px; font-size: 16px;">Sign In</h2>
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" id="login-username" class="form-input" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="login-password" class="form-input" placeholder="Enter password">
+                </div>
+                <div id="login-error" class="error"></div>
+                <button class="auth-btn" onclick="loginUser()">Sign In</button>
+                <div class="auth-toggle">
+                    Don't have an account? <a onclick="showRegister()">Create one</a>
+                </div>
+            </div>
+
+            <div id="register-form" style="display: none;">
+                <h2 style="color: #ececec; margin-bottom: 20px; font-size: 16px;">Create Account</h2>
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" id="register-username" class="form-input" placeholder="Choose username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="register-email" class="form-input" placeholder="Enter email">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="register-password" class="form-input" placeholder="Enter password">
+                </div>
+                <div id="register-error" class="error"></div>
+                <button class="auth-btn" onclick="registerUser()">Create Account</button>
+                <div class="auth-toggle">
+                    Already have an account? <a onclick="showLogin()">Sign in</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-section" style="display: none;" class="container">
+        <div class="sidebar">
+            <div class="brand">🤖 JARVIS</div>
+            <button class="new-chat-btn" onclick="newChat()">✨ New Chat</button>
+            
+            <div class="recent-chats-label">Recent Chats</div>
+            <div class="recent-chats" id="recent-chats"></div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info" id="user-info"></div>
+                <button class="logout-btn" onclick="logoutUser()">🚪 Logout</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <div class="header-title">Chat with Jarvis</div>
+                <div class="header-buttons">
+                    <button class="header-btn" onclick="showSettings()">⚙️ Settings</button>
+                    <button class="header-btn" onclick="showExport()">📤 Export</button>
+                </div>
+            </div>
+
+            <div class="chat-container">
+                <div id="messages" class="messages"></div>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="message-input" class="input-field" placeholder="Ask Jarvis anything..." onkeypress="handleKeyPress(event)">
+                <button class="send-btn" onclick="sendMessage()">Send</button>
+            </div>
+
+            <div class="action-buttons">
+                <button class="action-btn" onclick="viewHistory()">📜 History</button>
+                <button class="action-btn" onclick="viewSubscription()">💎 Subscription</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('settings-modal')">✕</button>
+            <div class="modal-title">⚙️ Settings</div>
+            <div class="form-group">
+                <label class="form-label">Theme</label>
+                <select style="width: 100%; padding: 8px; background: #2d2d2d; color: #ececec; border: none; border-radius: 4px;">
+                    <option>Dark Mode</option>
+                    <option>Light Mode</option>
+                </select>
+            </div>
+            <button class="auth-btn" onclick="closeModal('settings-modal')">Save Settings</button>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div id="export-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('export-modal')">✕</button>
+            <div class="modal-title">📤 Export Chat</div>
+            <div class="form-group">
+                <label class="form-label">Format</label>
+                <select id="export-format" style="width: 100%; padding: 8px; background: #2d2d2d; color: #ececec; border: none; border-radius: 4px;">
+                    <option value="txt">Text (.txt)</option>
+                    <option value="json">JSON (.json)</option>
+                </select>
+            </div>
+            <button class="auth-btn" onclick="exportChat()">Export Now</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let currentUser = null;
+        let conversationHistory = [];
+
+        // Auth functions
+        async function loginUser() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const errorDiv = document.getElementById('login-error');
+
+            if (!username || !password) {
+                errorDiv.textContent = 'Username and password required';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentUser = data;
+                    showApp();
+                    loadRecentChats();
+                    updateUserInfo();
+                } else {
+                    errorDiv.textContent = data.error || 'Login failed';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Connection error';
+                console.error(error);
+            }
+        }
+
+        async function registerUser() {
+            const username = document.getElementById('register-username').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const errorDiv = document.getElementById('register-error');
+
+            if (!username || !email || !password) {
+                errorDiv.textContent = 'All fields required';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentUser = { username, user_id: data.user_id, tier: 'free' };
+                    showApp();
+                    loadRecentChats();
+                    updateUserInfo();
+                } else {
+                    errorDiv.textContent = data.error || 'Registration failed';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Connection error';
+                console.error(error);
+            }
+        }
+
+        function logoutUser() {
+            fetch(`${API_BASE}/logout`, { method: 'POST' });
+            currentUser = null;
+            conversationHistory = [];
+            document.getElementById('auth-section').style.display = 'flex';
+            document.getElementById('app-section').style.display = 'none';
+            showLogin();
+        }
+
+        function showLogin() {
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('register-form').style.display = 'none';
+            document.getElementById('login-error').textContent = '';
+        }
+
+        function showRegister() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('register-form').style.display = 'block';
+            document.getElementById('register-error').textContent = '';
+        }
+
+        function showApp() {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'flex';
+        }
+
+        function updateUserInfo() {
+            if (currentUser) {
+                document.getElementById('user-info').innerHTML = `
+                    <div><strong>${currentUser.username}</strong></div>
+                    <div>${currentUser.tier.toUpperCase()}</div>
+                `;
+            }
+        }
+
+        // Chat functions
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // Add user message to UI
+            addMessageToUI('You', message);
+            input.value = '';
+            conversationHistory.push({ sender: 'You', message });
+
+            try {
+                const response = await fetch(`${API_BASE}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addMessageToUI('Jarvis', data.response);
+                    conversationHistory.push({ sender: 'Jarvis', message: data.response });
+                } else {
+                    addMessageToUI('System', data.message || data.error);
+                }
+            } catch (error) {
+                addMessageToUI('System', 'Connection error. Please try again.');
+                console.error(error);
+            }
+        }
+
+        function addMessageToUI(sender, message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${sender.toLowerCase()}`;
+            
+            const contentEl = document.createElement('div');
+            contentEl.className = 'message-content';
+            contentEl.textContent = message;
+            
+            messageEl.appendChild(contentEl);
+            messagesDiv.appendChild(messageEl);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        async function loadRecentChats() {
+            try {
+                const response = await fetch(`${API_BASE}/recent-chats`);
+                const data = await response.json();
+                
+                const recentChatsDiv = document.getElementById('recent-chats');
+                recentChatsDiv.innerHTML = '';
+                
+                if (data.chats && data.chats.length > 0) {
+                    data.chats.forEach(chat => {
+                        const chatItem = document.createElement('div');
+                        chatItem.className = 'chat-item';
+                        chatItem.textContent = `📝 ${chat.preview}`;
+                        chatItem.onclick = () => loadChat(chat.full_text);
+                        recentChatsDiv.appendChild(chatItem);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading recent chats:', error);
+            }
+        }
+
+        function newChat() {
+            document.getElementById('messages').innerHTML = '';
+            conversationHistory = [];
+            document.getElementById('message-input').focus();
+        }
+
+        function loadChat(chatText) {
+            newChat();
+            addMessageToUI('You', chatText);
+        }
+
+        async function exportChat() {
+            const format = document.getElementById('export-format').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/export`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ format })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    downloadFile(data.filename, data.content);
+                    closeModal('export-modal');
+                }
+            } catch (error) {
+                alert('Export failed');
+                console.error(error);
+            }
+        }
+
+        function downloadFile(filename, content) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        // Modal functions
+        function showSettings() {
+            document.getElementById('settings-modal').classList.add('active');
+        }
+
+        function showExport() {
+            document.getElementById('export-modal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function viewHistory() {
+            alert('Chat History:\n\n' + conversationHistory.map(m => `${m.sender}: ${m.message}`).join('\n\n'));
+        }
+
+        function viewSubscription() {
+            alert(`Subscription Tier: ${currentUser.tier.toUpperCase()}\n\nFree: 100 queries/month\nPro: 1000 queries/month\nPremium: 10000 queries/month`);
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            const isLoggedIn = !!currentUser;
+            if (isLoggedIn) {
+                showApp();
+                updateUserInfo();
+                loadRecentChats();
+            }
+        });
+    </script>
+</body>
+</html>
