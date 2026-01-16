@@ -54,8 +54,8 @@ except Exception as e:
 
 # Wit.ai API Configuration (Now using Wit.ai instead of OpenRouter)
 # Get your free API key from https://wit.ai
-WIT_AI_API_KEY = os.environ.get('WIT_AI_API_KEY', "")  # Must be set as environment variable
-WIT_AI_API_URL = "https://api.wit.ai/message"
+WIT_AI_API_KEY = "Bearer MVTY6EDQQBQC2STC5LV23W5ZAJJKGBYK"  # Must be set as environment variable
+WIT_AI_API_URL = "https://api.wit.ai/message?v=20260116&q="
 WIT_AI_API_VERSION = "20240117"  # Wit.ai API version
 
 # Fallback to OpenRouter if Wit.ai not configured (for backwards compatibility)
