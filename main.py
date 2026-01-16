@@ -52,14 +52,25 @@ except Exception as e:
     engine = None
     print("Voice output disabled - continuing without voice")
 
-# OpenRouter API Configuration
-# Try to get from environment first, then use hardcoded as fallback
-OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', "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")
+# Wit.ai API Configuration (Now using Wit.ai instead of OpenRouter)
+# Get your free API key from https://wit.ai
+WIT_AI_API_KEY = os.environ.get('WIT_AI_API_KEY', "")  # Must be set as environment variable
+WIT_AI_API_URL = "https://api.wit.ai/message"
+WIT_AI_API_VERSION = "20240117"  # Wit.ai API version
+
+# Fallback to OpenRouter if Wit.ai not configured (for backwards compatibility)
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', "")
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Get a free API key from https://openrouter.ai
-# To set custom key, run: set OPENROUTER_API_KEY=your_key_here (Windows) or export OPENROUTER_API_KEY=your_key_here (Mac/Linux)
-print(f"✓ Using API Key: {OPENROUTER_API_KEY[:20]}..." if OPENROUTER_API_KEY else "✗ No API key configured!")
+# Determine which AI service to use
+AI_SERVICE = "wit.ai" if WIT_AI_API_KEY else ("openrouter" if OPENROUTER_API_KEY else "none")
+
+if AI_SERVICE == "wit.ai":
+    print(f"✓ Using Wit.ai API (Key: {WIT_AI_API_KEY[:20]}...)")
+elif AI_SERVICE == "openrouter":
+    print(f"✓ Using OpenRouter API (Key: {OPENROUTER_API_KEY[:20]}...)")
+else:
+    print("⚠ No AI API key configured! Set WIT_AI_API_KEY or OPENROUTER_API_KEY environment variable.")
 
 # Common Applications Dictionary
 APP_PATHS = {
@@ -1357,14 +1368,76 @@ class JarvisGUI:
         if any(word in command_lower for word in ["volume", "brightness", "mute", "shutdown", "restart", "lock", "sleep"]):
             return "Adjusting system settings..."
         
-        # Use OpenRouter API for general queries
-        if OPENROUTER_API_KEY:
+        # Use AI API for general queries
+        if AI_SERVICE != "none":
             return self.get_ai_response(command)
         else:
-            return f"Interesting point: '{command}'. (Set OPENROUTER_API_KEY for full AI capabilities!)"
+            return f"Interesting point: '{command}'. (Set WIT_AI_API_KEY or OPENROUTER_API_KEY environment variable for AI capabilities!)"
     
     def get_ai_response(self, query):
-        """Get response from OpenRouter AI API with better error handling"""
+        """Get response from Wit.ai or OpenRouter API with fallback"""
+        try:
+            if AI_SERVICE == "wit.ai":
+                return self.get_wit_ai_response(query)
+            elif AI_SERVICE == "openrouter":
+                return self.get_openrouter_response(query)
+            else:
+                return "No AI service configured. Please set WIT_AI_API_KEY or OPENROUTER_API_KEY."
+        except Exception as e:
+            print(f"Error in get_ai_response: {e}")
+            return f"Error: {str(e)[:50]}"
+    
+    def get_wit_ai_response(self, query):
+        """Get response from Wit.ai API"""
+        try:
+            headers = {
+                "Authorization": f"Bearer {WIT_AI_API_KEY}",
+                "Accept": "application/json"
+            }
+            
+            params = {
+                "v": WIT_AI_API_VERSION,
+                "q": query
+            }
+            
+            response = requests.get(WIT_AI_API_URL, headers=headers, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Wit.ai returns intents and entities
+                if "intents" in data and len(data["intents"]) > 0:
+                    intent = data["intents"][0]["name"]
+                    confidence = data["intents"][0].get("confidence", 0)
+                    
+                    # Generate contextual response based on intent
+                    response_text = self.generate_response_from_intent(intent, data)
+                    return response_text
+                else:
+                    # Fallback to entity extraction
+                    return self.generate_response_from_entities(data)
+            else:
+                error_msg = response.text
+                print(f"Wit.ai Error {response.status_code}: {error_msg}")
+                
+                if response.status_code == 401:
+                    return "Wit.ai API Key issue. Please check your WIT_AI_API_KEY."
+                elif response.status_code == 429:
+                    return "Rate limited. Please wait a moment before trying again."
+                else:
+                    return f"Wit.ai error {response.status_code}. Please try rephrasing."
+                    
+        except requests.exceptions.Timeout:
+            print("Wit.ai request timeout")
+            return "The request timed out. Please try again with a simpler question."
+        except requests.exceptions.ConnectionError:
+            print("Connection error to Wit.ai")
+            return "Unable to connect to Wit.ai. Please check your internet connection."
+        except Exception as e:
+            print(f"Wit.ai Error: {e}")
+            return f"Error: {str(e)[:50]}"
+    
+    def get_openrouter_response(self, query):
+        """Get response from OpenRouter API with better error handling"""
         try:
             headers = {
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -1373,7 +1446,7 @@ class JarvisGUI:
             }
             
             payload = {
-                "model": "gpt-3.5-turbo",  # Free model through OpenRouter
+                "model": "gpt-3.5-turbo",
                 "messages": [
                     {
                         "role": "system",
@@ -1398,15 +1471,12 @@ class JarvisGUI:
                 else:
                     print(f"API Response missing choices: {data}")
                     return "I got a response but it was incomplete. Please try again."
-            
             else:
-                # Log the actual error
                 error_msg = response.text
-                print(f"API Error {response.status_code}: {error_msg}")
+                print(f"OpenRouter Error {response.status_code}: {error_msg}")
                 
-                # Return user-friendly message with hint
                 if response.status_code == 401:
-                    return "API Key issue. Please get a new key from openrouter.ai and update it in the code."
+                    return "OpenRouter API Key issue. Please check your OPENROUTER_API_KEY."
                 elif response.status_code == 429:
                     return "Rate limited. Please wait a moment before trying again."
                 elif response.status_code == 500:
@@ -1558,7 +1628,37 @@ class JarvisGUI:
         except Exception as e:
             print(f"Error in speak_response: {e}")
     
-    def toggle_voice_output(self):
+    def generate_response_from_intent(self, intent, data):
+        """Generate contextual response based on Wit.ai intent"""
+        intent_responses = {
+            "greeting": "Hello! How can I assist you today?",
+            "goodbye": "Goodbye! Have a great day!",
+            "thanks": "You're welcome! Happy to help.",
+            "help": "I can assist you with various tasks. Just ask me anything!",
+            "time": lambda: f"The current time is {datetime.datetime.now().strftime('%I:%M %p')}",
+            "date": lambda: f"Today is {datetime.datetime.now().strftime('%A, %B %d, %Y')}",
+            "weather": "I can check weather if you give me a location.",
+            "news": "I can help you with news. Which topic interests you?",
+        }
+        
+        if intent in intent_responses:
+            response = intent_responses[intent]
+            return response() if callable(response) else response
+        else:
+            return f"I understand you're asking about {intent}. Can you provide more details?"
+    
+    def generate_response_from_entities(self, wit_data):
+        """Generate response based on extracted entities from Wit.ai"""
+        # Extract entities
+        entities = wit_data.get("entities", {})
+        
+        # Build response based on what was understood
+        if entities:
+            entity_list = ", ".join([f"{k}: {v[0]['value']}" for k, v in entities.items() if v])
+            return f"I understood: {entity_list}. Can you tell me more?"
+        else:
+            return "I didn't quite understand. Could you rephrase that?"
+    
         """Toggle voice output on/off"""
         self.voice_output_state = not self.voice_output_state
         

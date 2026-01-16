@@ -1,0 +1,51 @@
+{
+  "name": "Jarvis AI Assistant",
+  "description": "Personal AI Assistant with voice recognition and smart device control",
+  "keywords": [
+    "ai",
+    "assistant",
+    "voice",
+    "wit.ai",
+    "automation"
+  ],
+  "repository": "https://github.com/MUHAMMADSufiyanDEV/Jarvis-Personal-AI-Assistant",
+  "website": "https://github.com/MUHAMMADSufiyanDEV/Jarvis-Personal-AI-Assistant",
+  "success_url": "/",
+  "addons": [
+    {
+      "plan": "heroku-postgresql:hobby-dev"
+    }
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "env": {
+    "WIT_AI_API_KEY": {
+      "description": "Your Wit.ai API key from https://wit.ai",
+      "required": true,
+      "value": ""
+    },
+    "SECRET_KEY": {
+      "description": "Secret key for session management",
+      "required": false,
+      "value": "jarvis-secret-key-change-in-production"
+    },
+    "DEBUG": {
+      "description": "Enable debug mode",
+      "required": false,
+      "value": "False"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "stack": "heroku-22",
+  "scripts": {
+    "postdeploy": "python setup.py"
+  }
+}
