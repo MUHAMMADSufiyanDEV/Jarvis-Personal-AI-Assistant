@@ -17,6 +17,10 @@ import time
 import platform
 import shutil
 import uuid
+from dotenv import load_dotenv  # Load environment variables from .env file
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import new modules
 from database import Database
@@ -26,15 +30,20 @@ from auth_ui import AuthenticationWindow, SubscriptionWindow, ChatHistoryWindow
 # Initialize text-to-speech engine with fallback
 engine = None
 try:
-    engine = pyttsx3.init()
-    # Use Microsoft SAPI5 on Windows for better quality
+    # Try to use a different driver for better stability
     if platform.system() == 'Windows':
-        try:
-            voices = engine.getProperty('voices')
-            if len(voices) > 1:
-                engine.setProperty('voice', voices[1].id)  # Try alternative voice
-        except:
-            pass
+        engine = pyttsx3.init('sapi5')  # Windows speech API
+    else:
+        engine = pyttsx3.init()
+    
+    # Configure voice
+    try:
+        voices = engine.getProperty('voices')
+        if len(voices) > 1:
+            engine.setProperty('voice', voices[1].id)  # Try alternative voice
+    except:
+        pass
+    
     engine.setProperty("rate", 160)  # Slightly slower for clarity
     engine.setProperty("volume", 1.0)  # Max volume
     print("✓ Voice engine initialized successfully")
@@ -44,11 +53,13 @@ except Exception as e:
     print("Voice output disabled - continuing without voice")
 
 # OpenRouter API Configuration
-OPENROUTER_API_KEY = "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"
+# Try to get from environment first, then use hardcoded as fallback
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', "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")
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# You can get a free API key from https://openrouter.ai
-# Or set it as environment variable: set OPENROUTER_API_KEY=your_key_here
+# Get a free API key from https://openrouter.ai
+# To set custom key, run: set OPENROUTER_API_KEY=your_key_here (Windows) or export OPENROUTER_API_KEY=your_key_here (Mac/Linux)
+print(f"✓ Using API Key: {OPENROUTER_API_KEY[:20]}..." if OPENROUTER_API_KEY else "✗ No API key configured!")
 
 # Common Applications Dictionary
 APP_PATHS = {
@@ -1353,7 +1364,7 @@ class JarvisGUI:
             return f"Interesting point: '{command}'. (Set OPENROUTER_API_KEY for full AI capabilities!)"
     
     def get_ai_response(self, query):
-        """Get response from OpenRouter AI API"""
+        """Get response from OpenRouter AI API with better error handling"""
         try:
             headers = {
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -1384,12 +1395,30 @@ class JarvisGUI:
                 if "choices" in data and len(data["choices"]) > 0:
                     message = data["choices"][0]["message"]["content"].strip()
                     return message
+                else:
+                    print(f"API Response missing choices: {data}")
+                    return "I got a response but it was incomplete. Please try again."
             
-            return "I'm processing your request, but encountered a temporary issue. Please try again."
+            else:
+                # Log the actual error
+                error_msg = response.text
+                print(f"API Error {response.status_code}: {error_msg}")
+                
+                # Return user-friendly message with hint
+                if response.status_code == 401:
+                    return "API Key issue. Please get a new key from openrouter.ai and update it in the code."
+                elif response.status_code == 429:
+                    return "Rate limited. Please wait a moment before trying again."
+                elif response.status_code == 500:
+                    return "OpenRouter API is having issues. Please try again in a moment."
+                else:
+                    return f"API error {response.status_code}. Please try rephrasing your question."
         
         except requests.exceptions.Timeout:
+            print("Request timeout")
             return "The request timed out. Please try again with a simpler question."
         except requests.exceptions.ConnectionError:
+            print("Connection error")
             return "Unable to connect to the AI service. Please check your internet connection."
         except Exception as e:
             print(f"API Error: {e}")
@@ -1510,10 +1539,16 @@ class JarvisGUI:
                         engine.say(text_to_speak)
                         engine.runAndWait()
                         print("✓ Speech completed")
+                except RuntimeError as e:
+                    if "run loop already started" in str(e):
+                        # Known pyttsx3 issue - just skip
+                        print(f"⚠ Voice output skipped (engine busy)")
+                    else:
+                        raise
                 except Exception as e:
                     print(f"Voice playback error: {e}")
                     # Retry once on failure
-                    if retry_count < 1:
+                    if retry_count < 1 and "run loop" not in str(e):
                         print("Retrying speech...")
                         time.sleep(0.5)
                         speak_thread(retry_count + 1)
