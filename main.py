@@ -23,19 +23,28 @@ from database import Database
 from account_manager import AccountManager, SubscriptionManager
 from auth_ui import AuthenticationWindow, SubscriptionWindow, ChatHistoryWindow
 
-# Initialize text-to-speech engine
+# Initialize text-to-speech engine with fallback
 engine = None
 try:
     engine = pyttsx3.init()
-    engine.setProperty("rate", 170)
-    engine.setProperty("volume", 0.9)
+    # Use Microsoft SAPI5 on Windows for better quality
+    if platform.system() == 'Windows':
+        try:
+            voices = engine.getProperty('voices')
+            if len(voices) > 1:
+                engine.setProperty('voice', voices[1].id)  # Try alternative voice
+        except:
+            pass
+    engine.setProperty("rate", 160)  # Slightly slower for clarity
+    engine.setProperty("volume", 1.0)  # Max volume
     print("✓ Voice engine initialized successfully")
 except Exception as e:
     print(f"⚠ Voice engine initialization failed: {e}")
+    engine = None
     print("Voice output disabled - continuing without voice")
 
 # OpenRouter API Configuration
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = "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"
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # You can get a free API key from https://openrouter.ai
@@ -1208,40 +1217,64 @@ class JarvisGUI:
         thread.start()
     
     def voice_input(self):
-        """Listen for voice input"""
+        """Listen for voice input with better UI feedback"""
         if self.is_listening:
-            messagebox.showwarning("Warning", "Already listening...")
+            messagebox.showwarning("Warning", "Already listening... please wait.")
             return
         
-        self.add_message("System", "🎤 Listening... (5 seconds)")
-        self.voice_btn.config(state=tk.DISABLED, text="⏳ Recording...")
-        self.root.update()
-        
-        # Record in separate thread
-        thread = threading.Thread(target=self.record_audio)
-        thread.daemon = True
-        thread.start()
+        try:
+            self.add_message("System", "🎤 Listening... (5 seconds)")
+            self.voice_btn.config(state=tk.DISABLED, text="⏳ Recording...")
+            self.root.update()
+            
+            # Record in separate thread
+            thread = threading.Thread(target=self.record_audio)
+            thread.daemon = True
+            thread.start()
+        except Exception as e:
+            print(f"Voice input error: {e}")
+            messagebox.showerror("Error", f"Could not start voice input: {str(e)}")
+            self.voice_btn.config(state=tk.NORMAL, text="🎤 Listen")
     
     def record_audio(self):
-        """Record audio from microphone"""
+        """Record audio from microphone with improved error handling"""
         self.is_listening = True
         try:
             print("Recording audio...")
-            audio_data = sd.rec(int(5 * 16000), samplerate=16000, channels=1, dtype="int16")
-            sd.wait()
-            
-            if recognizer.AcceptWaveform(audio_data.tobytes()):
-                result = json.loads(recognizer.Result())
-                command = result.get("text", "").strip()
+            try:
+                # Try to record audio
+                audio_data = sd.rec(int(5 * 16000), samplerate=16000, channels=1, dtype="int16")
+                sd.wait()
                 
-                if command:
-                    self.root.after(0, lambda: self.add_message("You", command))
-                    self.root.after(0, lambda: self.process_and_respond(command))
+                if audio_data is None or len(audio_data) == 0:
+                    raise ValueError("No audio recorded")
+                
+                # Process audio
+                if recognizer.AcceptWaveform(audio_data.tobytes()):
+                    result = json.loads(recognizer.Result())
+                    command = result.get("text", "").strip()
+                    
+                    if command:
+                        print(f"✓ Recognized: {command}")
+                        self.root.after(0, lambda: self.add_message("You", command))
+                        self.root.after(0, lambda: self.process_and_respond(command))
+                    else:
+                        self.root.after(0, lambda: self.add_message("System", "Could not understand audio. Please try again."))
                 else:
-                    self.root.after(0, lambda: self.add_message("System", "Could not understand audio. Please try again."))
-            
-        except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("Error", f"Recording error: {str(e)}"))
+                    # Partial result
+                    try:
+                        partial = json.loads(recognizer.PartialResult())
+                        partial_text = partial.get("partial", "").strip()
+                        if partial_text:
+                            print(f"Partial: {partial_text}")
+                    except:
+                        pass
+                        
+            except sd.PortAudioError:
+                self.root.after(0, lambda: messagebox.showerror("Microphone Error", "No microphone detected. Please connect a microphone."))
+            except Exception as e:
+                print(f"Recording error: {str(e)}")
+                self.root.after(0, lambda: messagebox.showerror("Error", f"Recording error: {str(e)}"))
         finally:
             self.is_listening = False
             self.root.after(0, lambda: self.voice_btn.config(state=tk.NORMAL, text="🎤 Listen"))
@@ -1449,27 +1482,41 @@ class JarvisGUI:
             return
     
     def speak_response(self, text):
-        """Speak the response"""
+        """Speak the response with improved error handling and retries"""
         if not hasattr(self, 'voice_output_state'):
             self.voice_output_state = True
         
-        if not self.voice_output_state or engine is None:
+        if not self.voice_output_state:
             return
         
         try:
-            # Limit text length to avoid long processing
-            text_to_speak = text[:300] if text else ""
+            if engine is None:
+                print("Voice engine not available")
+                return
+            
+            # Limit text length and clean it
+            text_to_speak = text[:500] if text else ""
             if not text_to_speak:
                 return
             
+            # Clean text for better speech
+            text_to_speak = text_to_speak.replace("\n", " ").replace("  ", " ").strip()
+            
             # Run speech in separate thread to avoid blocking UI
-            def speak_thread():
+            def speak_thread(retry_count=0):
                 try:
-                    if engine:
+                    if engine and text_to_speak:
+                        print(f"🔊 Speaking: {text_to_speak[:50]}...")
                         engine.say(text_to_speak)
                         engine.runAndWait()
+                        print("✓ Speech completed")
                 except Exception as e:
                     print(f"Voice playback error: {e}")
+                    # Retry once on failure
+                    if retry_count < 1:
+                        print("Retrying speech...")
+                        time.sleep(0.5)
+                        speak_thread(retry_count + 1)
             
             thread = threading.Thread(target=speak_thread, daemon=True)
             thread.start()
@@ -1481,11 +1528,24 @@ class JarvisGUI:
         self.voice_output_state = not self.voice_output_state
         
         if self.voice_output_state:
-            self.voice_output_btn.config(text="🔊 Voice ON", bg="#ffa500")
-            self.add_message("System", "🔊 Voice output enabled")
+            self.voice_output_btn.config(text="🔊 Voice ON", bg="#10a37f")
+            self.add_message("System", "🔊 Voice output enabled ✓")
+            print("✓ Voice output enabled")
         else:
             self.voice_output_btn.config(text="🔇 Voice OFF", bg="#666666")
             self.add_message("System", "🔇 Voice output disabled")
+            print("✓ Voice output disabled")
+    
+    def set_voice_speed(self, speed):
+        """Set voice playback speed"""
+        global engine
+        try:
+            if engine:
+                # Speed range: 50-300 (normal is ~150)
+                engine.setProperty("rate", int(speed))
+                print(f"✓ Voice speed set to: {speed}")
+        except Exception as e:
+            print(f"Error setting voice speed: {e}")
     
     def clear_chat(self):
         """Clear chat history"""
