@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Misc
+*.md
+.env
+*.torrent
+*.iso
+*.jfif
+*.csv
+*.txt
+.gitkeep
+
+# Folders to ignore
+Compressed/
+Music/
+Video/
+New folder/
+Programs/
+Documents/
+e36d71-*/
